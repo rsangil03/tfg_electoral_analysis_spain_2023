@@ -1,0 +1,23 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Data folders (adjust to your names)
+data/raw/
+data/interim/
+data/processed/
+
+# Excel and shapefile outputs
+*.xlsx
+*.shp
+*.dbf
+*.shx
+*.cpg
+*.prj
