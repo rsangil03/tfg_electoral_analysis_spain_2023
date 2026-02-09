@@ -22,3 +22,6 @@ data/processed/
 *.shx
 *.cpg
 *.prj
+
+# HTML
+*.html

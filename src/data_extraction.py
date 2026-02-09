@@ -4,20 +4,22 @@ import pandas as pd
 
 JOING_KEY_MITECO = 'codmun_ine'
 INFOELECTORAL_SKIPROWS = 5
+BASE_DIR = Path(__file__).parent.parent
+
 INFOELECTORAL_CONVOCATIONS = [
         {
                 'name': '2023',
-                'path': '../data/raw/infoelectoral/02_202307_1.xlsx',
+                'path': BASE_DIR / 'data' / 'raw' / 'infoelectoral' / '02_202307_1.xlsx',
                 'parties': ['PP', 'PSOE', 'VOX', 'SUMAR']
                 },
         {
                 'name': '2019',
-                'path': '../data/raw/infoelectoral/02_201911_1.xlsx',
+                'path': BASE_DIR / 'data' / 'raw' / 'infoelectoral' / '02_201911_1.xlsx',
                 'parties': ['PP', 'PSOE', 'VOX', 'PODEMOS-IU']
                 }
 ]
 
-def load_miteco(root_dir='../data/raw/miteco/'):
+def load_miteco(root_dir=None):
         """
         Loads MITECO shapefiles from the specified directory
         
@@ -28,10 +30,15 @@ def load_miteco(root_dir='../data/raw/miteco/'):
                 A GeoDataFrame containing the combined data from all MITECO shapefiles.
         """
 
+        if root_dir is None:
+                root_dir = BASE_DIR / 'data' / 'raw' / 'miteco'
+        else:
+                root_dir = Path(root_dir)
+
         gdf_miteco = None
 
         # We explore all the shapefiles (.shp)
-        for path in Path(root_dir).rglob('*.shp'):
+        for path in root_dir.rglob('*.shp'):
 
                 # We load the .shp
                 gdf = gpd.read_file(path)
@@ -60,12 +67,9 @@ def load_miteco(root_dir='../data/raw/miteco/'):
                 
         return gdf_miteco
 
-def load_infoelectoral(root_dir='../data/raw/infoelectoral/'):
+def load_infoelectoral():
         """
         Loads election .xlsx data from the specified directory
-
-        Args:
-                root_dir (str): The path to the Infoelectoral data directory.
 
         Returns:
                 A DataFrame containing the combined data from all Infoelectoral .xlsx files.
@@ -131,4 +135,8 @@ def extract_data():
 
 if __name__ == "__main__":
         gdf_combined = extract_data()
-        gdf_combined.to_file('../data/processed/combined_data.geojson', driver='GeoJSON')
+        output_dir = BASE_DIR / 'data' / 'processed'
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / 'combined_data.gpkg'
+        gdf_combined.to_file(output_path, driver='GPKG')
+        print(f"Data extraction and combination completed. Output saved to '{output_path}'.")
