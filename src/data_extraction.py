@@ -2,8 +2,20 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-JOING_KEY_MITECO = 'nombre'
+JOING_KEY_MITECO = 'codmun_ine'
 INFOELECTORAL_SKIPROWS = 5
+INFOELECTORAL_CONVOCATIONS = [
+        {
+                'name': '2023',
+                'path': '../data/raw/infoelectoral/02_202307_1.xlsx',
+                'parties': ['PP', 'PSOE', 'VOX', 'SUMAR']
+                },
+        {
+                'name': '2019',
+                'path': '../data/raw/infoelectoral/02_201911_1.xlsx',
+                'parties': ['PP', 'PSOE', 'VOX', 'PODEMOS-IU']
+                }
+]
 
 def load_miteco(root_dir='../data/raw/miteco/'):
         """
@@ -48,20 +60,6 @@ def load_miteco(root_dir='../data/raw/miteco/'):
                 
         return gdf_miteco
 
-def load_infoelectoral_xlsx(path, convocation_name):
-        """
-        Loads election .xlsx data from the specified directory
-
-        Args:
-                path (str): The path to the .xlsx file.
-                convocation_name (str): The election convocation to load.
-
-        Returns:
-                A DataFrame containing the data from the specified .xlsx file.
-        """
-        df = pd.read_excel(path, skiprows=INFOELECTORAL_SKIPROWS)
-
-
 def load_infoelectoral(root_dir='../data/raw/infoelectoral/'):
         """
         Loads election .xlsx data from the specified directory
@@ -73,4 +71,64 @@ def load_infoelectoral(root_dir='../data/raw/infoelectoral/'):
                 A DataFrame containing the combined data from all Infoelectoral .xlsx files.
         """
 
-        # First we 
+        df_infoelectoral = None
+
+        for convocation in INFOELECTORAL_CONVOCATIONS:
+                path = convocation['path']
+                parties = convocation['parties']
+
+                # We load the .xlsx
+                df = pd.read_excel(path, skiprows=INFOELECTORAL_SKIPROWS)
+
+                # Generate INE municipal code from province and municipality codes
+                df[JOING_KEY_MITECO] = (
+                        df['Código de Provincia'].astype(str).str.zfill(2) +
+                        df['Código de Municipio'].astype(str).str.zfill(3)
+                )
+
+                # We filter the data to only include the specified parties
+                columns = [JOING_KEY_MITECO, 'Total censo electoral'] + parties
+                df = df[columns]
+
+                # Rename everything except the joining key
+                df = df.add_suffix('_' + convocation['name'])
+                df = df.rename(columns={f'{JOING_KEY_MITECO}_{convocation["name"]}': JOING_KEY_MITECO})
+
+                if df_infoelectoral is None:
+                        df_infoelectoral = df
+                else:
+                        # We merge the data
+                        df_infoelectoral = df_infoelectoral.merge(
+                                df,
+                                on=JOING_KEY_MITECO,
+                                how='outer'
+                        )
+
+        return df_infoelectoral
+
+def extract_data():
+        """
+        Extracts and combines data from MITECO shapefiles and Infoelectoral .xlsx files.
+
+        Returns:
+                A GeoDataFrame containing the combined data from both sources.
+        """
+
+        # Load MITECO data
+        gdf_miteco = load_miteco()
+
+        # Load Infoelectoral data
+        df_infoelectoral = load_infoelectoral()
+
+        # Merge the two datasets on the joining key
+        gdf_combined = gdf_miteco.merge(
+                df_infoelectoral,
+                on=JOING_KEY_MITECO,
+                how='outer'
+        )
+
+        return gdf_combined
+
+if __name__ == "__main__":
+        gdf_combined = extract_data()
+        gdf_combined.to_file('../data/processed/combined_data.geojson', driver='GeoJSON')
