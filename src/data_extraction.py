@@ -94,6 +94,9 @@ def load_infoelectoral():
                 columns = [JOING_KEY_MITECO, 'Total censo electoral'] + parties
                 df = df[columns]
 
+                # Compute the percentage of votes for each party
+                df[parties] = df[parties].div(df['Total censo electoral'], axis=0) * 100
+
                 # Rename everything except the joining key
                 df = df.add_suffix('_' + convocation['name'])
                 df = df.rename(columns={f'{JOING_KEY_MITECO}_{convocation["name"]}': JOING_KEY_MITECO})
