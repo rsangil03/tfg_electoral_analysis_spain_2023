@@ -10,12 +10,20 @@ INFOELECTORAL_CONVOCATIONS = [
         {
                 'name': '2023',
                 'path': BASE_DIR / 'data' / 'raw' / 'infoelectoral' / '02_202307_1.xlsx',
-                'parties': ['PP', 'PSOE', 'VOX', 'SUMAR']
+                'parties': ['PP', 'PSOE', 'VOX', 'SUMAR'],
+                'coalitions': None
                 },
         {
                 'name': '2019',
                 'path': BASE_DIR / 'data' / 'raw' / 'infoelectoral' / '02_201911_1.xlsx',
-                'parties': ['PP', 'PSOE', 'VOX', 'PODEMOS-IU']
+                'parties': ['PP', 'PSOE', 'VOX'],
+                'coalitions': [
+                        {
+                                'name': 'SUMAR',
+                                'parties': ['PODEMOS-IU', 'ECP-GUANYEM EL CANVI', 'MÁS PAÍS-EQUO',
+                                        'PODEMOS-EU', 'MÉS COMPROMÍS', 'MÁS PAÍS', 'M PAÍS-CHA-EQUO', 'MÉS-ESQUERRA']
+                                }
+                        ]
                 }
 ]
 
@@ -80,6 +88,7 @@ def load_infoelectoral():
         for convocation in INFOELECTORAL_CONVOCATIONS:
                 path = convocation['path']
                 parties = convocation['parties']
+                coalitions = convocation['coalitions']
 
                 # We load the .xlsx
                 df = pd.read_excel(path, skiprows=INFOELECTORAL_SKIPROWS)
@@ -90,12 +99,26 @@ def load_infoelectoral():
                         df['Código de Municipio'].astype(str).str.zfill(3)
                 )
 
+                coalition_names = []
+
+                # If there are coalitions, we sum the votes of the parties in the coalition
+                if coalitions is not None:
+                        for coalition in coalitions:
+                                coalition_name = coalition['name']
+                                coalition_parties = coalition['parties']
+
+                                # We sum the votes of the parties in the coalition
+                                df[coalition_name] = df[coalition_parties].sum(axis=1)
+
+                                # We add the coalition name to the list of parties to keep
+                                coalition_names.append(coalition_name)
+
                 # We filter the data to only include the specified parties
-                columns = [JOING_KEY_MITECO, 'Total censo electoral'] + parties
+                columns = [JOING_KEY_MITECO, 'Total censo electoral'] + parties + coalition_names
                 df = df[columns]
 
                 # Compute the percentage of votes for each party
-                df[parties] = df[parties].div(df['Total censo electoral'], axis=0) * 100
+                df[parties + coalition_names] = df[parties + coalition_names].div(df['Total censo electoral'], axis=0) * 100
 
                 # Rename everything except the joining key
                 df = df.add_suffix('_' + convocation['name'])
