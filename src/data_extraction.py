@@ -2,30 +2,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-JOING_KEY_MITECO = 'codmun_ine'
-INFOELECTORAL_SKIPROWS = 5
-BASE_DIR = Path(__file__).parent.parent
-
-INFOELECTORAL_CONVOCATIONS = [
-        {
-                'name': '2023',
-                'path': BASE_DIR / 'data' / 'raw' / 'infoelectoral' / '02_202307_1.xlsx',
-                'parties': ['PP', 'PSOE', 'VOX', 'SUMAR'],
-                'coalitions': None
-                },
-        {
-                'name': '2019',
-                'path': BASE_DIR / 'data' / 'raw' / 'infoelectoral' / '02_201911_1.xlsx',
-                'parties': ['PP', 'PSOE', 'VOX'],
-                'coalitions': [
-                        {
-                                'name': 'SUMAR',
-                                'parties': ['PODEMOS-IU', 'ECP-GUANYEM EL CANVI', 'MÁS PAÍS-EQUO',
-                                        'PODEMOS-EU', 'MÉS COMPROMÍS', 'MÁS PAÍS', 'M PAÍS-CHA-EQUO', 'MÉS-ESQUERRA']
-                                }
-                        ]
-                }
-]
+from config import *
 
 def load_miteco(root_dir=None):
         """
@@ -64,7 +41,7 @@ def load_miteco(root_dir=None):
                                         columns.append(col)
 
                         # We create the merge data
-                        gdf_to_merge = gdf[columns]
+                        gdf_to_merge = gdf[columns].copy()
 
                         # We merge the data
                         gdf_miteco = gdf_miteco.merge(
@@ -72,7 +49,11 @@ def load_miteco(root_dir=None):
                                 on=JOING_KEY_MITECO,
                                 how='outer'
                         )
-                
+
+        # For each row, we compute the centroid of the geometry and store it in a new column 'centroid'
+        gdf_miteco['centroid_x'] = gdf_miteco.geometry.centroid.x
+        gdf_miteco['centroid_y'] = gdf_miteco.geometry.centroid.y
+                        
         return gdf_miteco
 
 def load_infoelectoral():
@@ -83,7 +64,7 @@ def load_infoelectoral():
                 A DataFrame containing the combined data from all Infoelectoral .xlsx files.
         """
 
-        df_infoelectoral = None
+        df_convocations = []
 
         for convocation in INFOELECTORAL_CONVOCATIONS:
                 path = convocation['path']
@@ -114,27 +95,55 @@ def load_infoelectoral():
                                 coalition_names.append(coalition_name)
 
                 # We filter the data to only include the specified parties
-                columns = [JOING_KEY_MITECO, 'Total censo electoral'] + parties + coalition_names
-                df = df[columns]
+                all_parties = parties + coalition_names
+                columns = [JOING_KEY_MITECO, 'Total censo electoral'] + all_parties
+                df = df[columns].copy()
 
                 # Compute the percentage of votes for each party
-                df[parties + coalition_names] = df[parties + coalition_names].div(df['Total censo electoral'], axis=0) * 100
+                df[all_parties] = df[all_parties].div(df['Total censo electoral'], axis=0) * 100
 
                 # Rename everything except the joining key
                 df = df.add_suffix('_' + convocation['name'])
                 df = df.rename(columns={f'{JOING_KEY_MITECO}_{convocation["name"]}': JOING_KEY_MITECO})
 
-                if df_infoelectoral is None:
-                        df_infoelectoral = df
-                else:
-                        # We merge the data
-                        df_infoelectoral = df_infoelectoral.merge(
-                                df,
-                                on=JOING_KEY_MITECO,
-                                how='outer'
-                        )
+                df_convocations.append(df)
+
+        # We merge all the convocations on the joining key
+        df_infoelectoral = df_convocations[0]
+        for df in df_convocations[1:]:
+                df_infoelectoral = df_infoelectoral.merge(
+                        df,
+                        on=JOING_KEY_MITECO,
+                        how='outer'
+                )
 
         return df_infoelectoral
+
+def compute_vote_differences(df, parties, convocation1, convocation2):
+        """
+        Computes the difference in vote percentages between two convocations for the specified parties.
+
+        Args:
+                df (DataFrame): The DataFrame containing the election data.
+                parties (list): A list of party names to compute differences for.
+                convocation1 (str): The name of the first convocation (e.g., '2019').
+                convocation2 (str): The name of the second convocation (e.g., '2023').
+
+        Returns:
+                A DataFrame with the computed vote differences for each party.
+        """
+
+        for party in parties:
+                col1 = f'{party}_{convocation1}'
+                col2 = f'{party}_{convocation2}'
+                diff_col = f'{party}_diff_{convocation2}_{convocation1}'
+
+                if col1 in df.columns and col2 in df.columns:
+                        df[diff_col] = df[col2] - df[col1]
+                else:
+                        print(f"Warning: Columns '{col1}' or '{col2}' not found in DataFrame. Skipping difference computation for party '{party}'.")
+
+        return df
 
 def extract_data():
         """
@@ -146,9 +155,11 @@ def extract_data():
 
         # Load MITECO data
         gdf_miteco = load_miteco()
+        print(f"MITECO data loaded with {len(gdf_miteco)} records.")
 
         # Load Infoelectoral data
         df_infoelectoral = load_infoelectoral()
+        print(f"Infoelectoral data loaded with {len(df_infoelectoral)} records.")
 
         # Merge the two datasets on the joining key
         gdf_combined = gdf_miteco.merge(
@@ -156,6 +167,12 @@ def extract_data():
                 on=JOING_KEY_MITECO,
                 how='outer'
         )
+        print(f"Data combined with {len(gdf_combined)} records after merging.")
+
+        # Compute vote differences between 2023 and 2019 for the specified parties
+        parties = ['PP', 'PSOE', 'VOX', 'SUMAR']
+        gdf_combined = compute_vote_differences(gdf_combined, parties, '2019', '2023')
+        print("Vote differences computed for parties: " + ", ".join(parties))
 
         return gdf_combined
 
