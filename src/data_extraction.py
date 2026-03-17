@@ -2,7 +2,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-from config import *
+from src.config import *
 
 def load_miteco(root_dir=None):
         """
@@ -96,11 +96,11 @@ def load_infoelectoral():
 
                 # We filter the data to only include the specified parties
                 all_parties = parties + coalition_names
-                columns = [JOING_KEY_MITECO, 'Total censo electoral'] + all_parties
+                columns = [JOING_KEY_MITECO, 'Votos válidos'] + all_parties
                 df = df[columns].copy()
 
                 # Compute the percentage of votes for each party
-                df[all_parties] = df[all_parties].div(df['Total censo electoral'], axis=0) * 100
+                df[all_parties] = df[all_parties].div(df['Votos válidos'], axis=0) * 100
 
                 # Rename everything except the joining key
                 df = df.add_suffix('_' + convocation['name'])

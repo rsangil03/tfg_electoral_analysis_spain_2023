@@ -8,14 +8,25 @@ INFOELECTORAL_CONVOCATIONS = [
         {
                 'name': '2023',
                 'path': BASE_DIR / 'data' / 'raw' / 'infoelectoral' / '02_202307_1.xlsx',
-                'parties': ['PP', 'PSOE', 'VOX', 'SUMAR'],
-                'coalitions': None
+                'parties': ['PSOE', 'VOX', 'SUMAR'],
+               'coalitions': [
+                        {
+                                'name': 'PP', # We create a coalition for PP and U.P.N., as in Navarra they 
+                                              # run together as NA+ in 2019, but in 2023 they run separately
+                                'parties': ['PP', 'U.P.N.']
+                                }
+                        ]
                 },
         {
                 'name': '2019',
                 'path': BASE_DIR / 'data' / 'raw' / 'infoelectoral' / '02_201911_1.xlsx',
-                'parties': ['PP', 'PSOE', 'VOX'],
+                'parties': ['PSOE', 'VOX'],
                 'coalitions': [
+                        {
+                                'name': 'PP', # We create a coalition for PP and U.P.N., as in Navarra 
+                                              # they run together as NA+ in 2019, but in 2023 they run separately
+                                'parties': ['PP', 'NA+']
+                                },
                         {
                                 'name': 'SUMAR', # We create a coalition for the parties that are part of Sumar in 2023, since they were not in 2019
                                 'parties': ['PODEMOS-IU', 'ECP-GUANYEM EL CANVI', 'MÁS PAÍS-EQUO',
