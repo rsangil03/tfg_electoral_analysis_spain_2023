@@ -51,8 +51,8 @@ def load_miteco(root_dir=None):
                         )
 
         # For each row, we compute the centroid of the geometry and store it in a new column 'centroid'
-        gdf_miteco['centroid_x'] = gdf_miteco.geometry.centroid.x
-        gdf_miteco['centroid_y'] = gdf_miteco.geometry.centroid.y
+        gdf_miteco['latitude'] = gdf_miteco.geometry.centroid.y
+        gdf_miteco['longitude'] = gdf_miteco.geometry.centroid.x
                         
         return gdf_miteco
 

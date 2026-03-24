@@ -9,7 +9,7 @@ INFOELECTORAL_CONVOCATIONS = [
                 'name': '2023',
                 'path': BASE_DIR / 'data' / 'raw' / 'infoelectoral' / '02_202307_1.xlsx',
                 'parties': ['PSOE', 'VOX', 'SUMAR'],
-               'coalitions': [
+                'coalitions': [
                         {
                                 'name': 'PP', # We create a coalition for PP and U.P.N., as in Navarra they 
                                               # run together as NA+ in 2019, but in 2023 they run separately
@@ -51,3 +51,25 @@ COLOURS_PARTIES = {
         'SUMAR_2023': '#e61b53',
         'SUMAR_diff_2023_2019': '#e61b53'
 }
+
+V_Population_2023 = 'pob_23'
+V_Population_2014 = 'pob_14'
+V_Population_change = 'pob_14_23'
+V_Population_density = 'dens_pob'
+V_Mean_age = 'edad_media'
+V_Population_over_65 = 'porc_pob65'
+V_Foreign_population = 'porc_pob_e'
+V_Native_population = 'pob_npum'
+V_Masculinity_ratio = 'rat_mascul'
+
+V_Mean_net_income = 'rta_nt_med'
+V_Affiliation_per_1000_inhabitants = 'afi_1000'
+V_Unemployment_per_1000_inhabitants = 'paro_1000'
+V_Population_over_16_with_higher_education = 'pob_esup16'
+
+V_CCAA = 'cod_ccaa'
+
+# Codes of administrative units
+C_CCAA_CANARIAS = '05'
+C_CCAA_CEUTA = '18'
+C_CCAA_MELILLA = '19'
