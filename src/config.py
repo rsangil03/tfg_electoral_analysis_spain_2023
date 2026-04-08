@@ -23,20 +23,14 @@ V_HIGHER_EDUCATION = 'Population with higher education (%)'
 # Variables from INE's Household Income Distribution Atlas
 V_MEAN_NET_INCOME = 'Mean net income per person'
 
-V_Population_2023 = 'pob_23'
-V_Population_2014 = 'pob_14'
-V_Population_change = 'pob_14_23'
-V_Population_density = 'dens_pob'
-V_Mean_age = 'edad_media'
-V_Population_over_65 = 'porc_pob65'
-V_Foreign_population = 'porc_pob_e'
-V_Native_population = 'pob_npum'
-V_Masculinity_ratio = 'rat_mascul'
+# Variables from municipal register of inhabitants (Padrón Municipal) data
+V_POPULATION_CHANGE = 'Population change from 2019 to 2023 (%)'
 
-V_Mean_net_income = 'rta_nt_med'
-V_Affiliation_per_1000_inhabitants = 'afi_1000'
-V_Unemployment_per_1000_inhabitants = 'paro_1000'
-V_Population_over_16_with_higher_education = 'pob_esup16'
+# Variables from Social Security
+V_AFFILIATION = 'Affiliation to Social Security per 1000 inhabitants'
+
+# Variables from SEPE (Public State Employment Service)
+V_UNEMPLOYMENT = 'Unemployment per 1000 inhabitants'
 
 V_VOTES_2023 = 'Number of votes in 2023'
 V_VOTES_2019 = 'Number of votes in 2019'
@@ -59,9 +53,12 @@ V_SUMAR_DIFF_2023_2019 = 'Vote difference for SUMAR from 2019 to 2023'
 BASE_DIR = Path(__file__).parent.parent
 
 # This is the filename of the INE demographics CSV in the raw data directory
-INE_DEMOGRAPHICS_CSV = '68541.csv'
-INE_HIGHER_EDUCATION_CSV = '66592.csv'
-INE_INCOME_CSV = '30824.csv'
+INE_DEMOGRAPHICS = '68541.csv'
+INE_HIGHER_EDUCATION = '66592.csv'
+INE_INCOME = '30824.csv'
+INE_REGISTER_2019 = 'pobmun19.xlsx'
+INE_REGISTER_2023 = 'pobmun23.xlsx'
+SEPE_UNEMPLOYMENT = 'Paro_por_municipios_2023_csv.csv'
 
 INFOELECTORAL_SKIPROWS = 5
 

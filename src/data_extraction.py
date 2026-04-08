@@ -15,7 +15,7 @@ def load_miteco():
 
     gdf[V_AREA] = gdf.geometry.to_crs(epsg=25830).area / 1e6
 
-    centroids_wgs84 = gdf.geometry.centroid.to_crs(epsg=4326)
+    centroids_wgs84 = gdf.geometry.to_crs(epsg=25830).centroid.to_crs(epsg=4326)
     gdf[V_LATITUDE] = centroids_wgs84.y
     gdf[V_LONGITUDE] = centroids_wgs84.x
 
@@ -57,7 +57,7 @@ def load_demographics_ine(year=2023):
         DataFrame containing the extracted demographic metrics.
     """
     
-    csv_path = BASE_DIR / 'data' / 'raw' / 'ine' / INE_DEMOGRAPHICS_CSV
+    csv_path = BASE_DIR / 'data' / 'raw' / 'ine' / INE_DEMOGRAPHICS
     
     # Read the CSV. The parameters thousands='.' and decimal=',' automatically 
     # parse the Spanish number formats (e.g. 49.128.297 or 44,55) into standard floats.
@@ -134,7 +134,7 @@ def load_higher_education_ine(year=2023):
         DataFrame with the higher education metric per municipality.
     """
     
-    csv_path = BASE_DIR / 'data' / 'raw' / 'ine' / INE_HIGHER_EDUCATION_CSV 
+    csv_path = BASE_DIR / 'data' / 'raw' / 'ine' / INE_HIGHER_EDUCATION 
 
     # We read the CSV with the same parameters as in load_demographics_ine
     df = pd.read_csv(csv_path, sep=';', thousands='.', decimal=',', na_values=['.', '..', '...', '-'])
@@ -185,7 +185,7 @@ def load_economic_ine(year=2023):
     """
     
     # Asegúrate de usar el nombre correcto del CSV en tu carpeta raw
-    csv_path = BASE_DIR / 'data' / 'raw' / 'ine' / INE_INCOME_CSV
+    csv_path = BASE_DIR / 'data' / 'raw' / 'ine' / INE_INCOME
     
     df = pd.read_csv(
         csv_path, 
@@ -213,6 +213,182 @@ def load_economic_ine(year=2023):
     df_economic = df[[V_MUNICIPALITY, 'Total']].rename(columns={'Total': V_MEAN_NET_INCOME})
             
     return df_economic
+
+def load_population_change_ine():
+    """
+    Loads 2019 and 2023 municipal register population data, 
+    calculates the % change, and returns a DataFrame ready to be merged.
+
+    Returns:
+        DataFrame with the net average income by municipality.
+    """
+    # Assuming the files are stored in data/raw/ine/ (adjust path as needed in your project)
+    # If they are in the root directory for now, you can change the path to BASE_DIR / 'pobmun19.xlsx - dic18.csv'
+    data_dir = BASE_DIR / 'data' / 'raw' / 'ine' 
+    
+    # Read the files, skipping the first row because of the title
+    # Force CPRO and CMUN to be strings to preserve leading zeros
+    df_19 = pd.read_excel(data_dir /INE_REGISTER_2019, header=1, dtype={'CPRO': str, 'CMUN': str})
+    df_23 = pd.read_excel(data_dir / INE_REGISTER_2023, header=1, dtype={'CPRO': str, 'CMUN': str})
+    
+    # Create the 5-digit INE municipality code
+    df_19[V_MUNICIPALITY] = df_19['CPRO'].str.zfill(2) + df_19['CMUN'].str.zfill(3)
+    df_23[V_MUNICIPALITY] = df_23['CPRO'].str.zfill(2) + df_23['CMUN'].str.zfill(3)
+    
+    # Keep only the relevant columns to make the merge cleaner
+    df_19 = df_19[[V_MUNICIPALITY, 'POB19']]
+    df_23 = df_23[[V_MUNICIPALITY, 'POB23']]
+    
+    # Merge both years on the municipality code
+    df_pop = pd.merge(df_19, df_23, on=V_MUNICIPALITY, how='inner')
+    
+    # Ensure population columns are numeric
+    df_pop['POB19'] = pd.to_numeric(df_pop['POB19'], errors='coerce')
+    df_pop['POB23'] = pd.to_numeric(df_pop['POB23'], errors='coerce')
+    
+    # Calculate population change in percentage
+    df_pop[V_POPULATION_CHANGE] = ((df_pop['POB23'] - df_pop['POB19']) / df_pop['POB19']) * 100
+    
+    # Return the clean dataframe ready for the master merge
+    return df_pop[[V_MUNICIPALITY, V_POPULATION_CHANGE]]
+
+def load_unemployment():
+    """
+    Loads and cleans the 2023 municipal unemployment data from SEPE.
+
+    This function reads the raw monthly unemployment CSV file, processes 
+    statistical secrecy symbols (converting '<5' to a midpoint of '2.5', 
+    and stripping '>=' or '>'), and calculates the annual mean of absolute 
+    registered unemployment for each municipality.
+
+    Returns:
+        pandas.DataFrame: A dataframe containing the municipality code 
+                          and its annual mean of registered unemployment.
+    """
+    data_path = BASE_DIR / 'data' / 'raw' / 'sepe' / SEPE_UNEMPLOYMENT
+    df = pd.read_csv(data_path, sep=';', header=1, dtype={'Codigo Municipio': str}, encoding='latin-1')
+    
+    df.rename(columns={'Codigo Municipio': V_MUNICIPALITY}, inplace=True)
+    df = df[[V_MUNICIPALITY, 'total Paro Registrado']]
+    
+    df['total Paro Registrado'] = df['total Paro Registrado'].astype(str)
+    
+    df['total Paro Registrado'] = df['total Paro Registrado'].replace('<5', '2.5')
+    df['total Paro Registrado'] = df['total Paro Registrado'].str.replace('>=', '', regex=False)
+    df['total Paro Registrado'] = df['total Paro Registrado'].str.replace('>', '', regex=False)
+    
+    df['total Paro Registrado'] = pd.to_numeric(df['total Paro Registrado'], errors='coerce')
+    
+    df_annual_mean = df.groupby(V_MUNICIPALITY, as_index=False)['total Paro Registrado'].mean()
+    
+    return df_annual_mean
+
+def compute_unemployment_per_1000(gdf_combined, df_unemployment):
+    """
+    Merges absolute unemployment data with the main spatial dataset and 
+    calculates the unemployment rate per 1,000 inhabitants.
+
+    This function joins the cleaned unemployment dataframe to the main 
+    GeoDataFrame using the municipality code, calculates the rate based 
+    on the 2023 population, handles missing values, and drops temporary columns.
+
+    Args:
+        gdf_combined (geopandas.GeoDataFrame): The main dataset containing 
+                                               2023 population figures.
+        df_unemployment (pandas.DataFrame): The cleaned dataframe containing 
+                                            absolute annual unemployment means.
+
+    Returns:
+        geopandas.GeoDataFrame: The main dataset updated with the standardized 
+                                unemployment rate metric.
+    """
+    gdf_combined = gdf_combined.merge(df_unemployment, on=V_MUNICIPALITY, how='left')
+    
+    gdf_combined[V_UNEMPLOYMENT] = (gdf_combined['total Paro Registrado'] / gdf_combined[V_POPULATION_2023]) * 1000
+    
+    gdf_combined.drop(columns=['total Paro Registrado'], inplace=True)
+    
+    return gdf_combined
+
+def load_affiliation(year = 2023):
+    """
+    Loads and cleans municipal affiliation data from the Social Security.
+
+    This function reads all monthly affiliation Excel files, extracts the 
+    municipality code, processes statistical secrecy symbols (converting '<5' 
+    to a midpoint of '2.5', stripping '>=', and removing thousand separators), 
+    and calculates the annual mean of affiliated workers for each municipality.
+
+    Args:
+        year (int): The year of the data to extract (default 2023).
+
+    Returns:
+        pandas.DataFrame: A dataframe containing the municipality code 
+                          and its annual mean of affiliated workers.
+    """
+    # Define the directory where your affiliation files are stored. 
+    # Adjust the path if they are inside a specific subfolder like 'seguridad_social'
+    data_dir = BASE_DIR / 'data' / 'raw' / 'seguridad social'
+    
+    # Find all Excel files matching the affiliation naming pattern
+    file_paths = list(data_dir.glob(f'AfiliadosMuni-*-{year}.xlsx'))
+    
+    df_list = []
+    for file_path in file_paths:
+        # Read each excel file, skipping the title row (header=1)
+        df_month = pd.read_excel(file_path, header=1, dtype=str)
+        df_list.append(df_month)
+        
+    df = pd.concat(df_list, ignore_index=True)
+    
+    # Extract the 5-digit municipality code from the 'MUNICIPIO' column
+    df[V_MUNICIPALITY] = df['MUNICIPIO'].str[:5]
+    
+    df = df[[V_MUNICIPALITY, 'TOTAL']]
+    
+    df['TOTAL'] = df['TOTAL'].astype(str)
+    
+    # Remove thousand separators (periods) before converting to numeric
+    df['TOTAL'] = df['TOTAL'].str.replace('.', '', regex=False)
+    
+    # Process statistical secrecy symbols
+    df['TOTAL'] = df['TOTAL'].replace('<5', '2.5')
+    df['TOTAL'] = df['TOTAL'].str.replace('>=', '', regex=False)
+    df['TOTAL'] = df['TOTAL'].str.replace('>', '', regex=False)
+    
+    df['TOTAL'] = pd.to_numeric(df['TOTAL'], errors='coerce')
+    
+    df_annual_mean = df.groupby(V_MUNICIPALITY, as_index=False)['TOTAL'].mean()
+    
+    return df_annual_mean
+
+
+def compute_affiliation_per_1000(gdf_combined, df_affiliation):
+    """
+    Merges absolute Social Security affiliation data with the main spatial dataset 
+    and calculates the affiliation rate per 1,000 inhabitants.
+
+    This function joins the cleaned affiliation dataframe to the main GeoDataFrame 
+    using the municipality code, calculates the rate based on the 2023 population, 
+    handles missing values, and drops temporary columns.
+
+    Args:
+        gdf_combined (geopandas.GeoDataFrame): The main dataset containing 
+                                               2023 population figures.
+        df_affiliation (pandas.DataFrame): The cleaned dataframe containing 
+                                           absolute annual affiliation means.
+
+    Returns:
+        geopandas.GeoDataFrame: The main dataset updated with the standardized 
+                                affiliation rate metric.
+    """
+    gdf_combined = gdf_combined.merge(df_affiliation, on=V_MUNICIPALITY, how='left')
+    
+    gdf_combined[V_AFFILIATION] = (gdf_combined['TOTAL'] / gdf_combined[V_POPULATION_2023]) * 1000
+    
+    gdf_combined.drop(columns=['TOTAL'], inplace=True)
+    
+    return gdf_combined
 
 def load_infoelectoral():
         """
@@ -349,6 +525,25 @@ def extract_data():
         )
         print(f"Income data merged with {len(gdf_combined)} records.")
 
+        # Load population change data from INE and merge it with the existing data
+        df_population_change = load_population_change_ine()
+        gdf_combined = gdf_combined.merge(
+                df_population_change,
+                on=V_MUNICIPALITY,
+                how='left'
+        )
+        print(f"Population change data merged with {len(gdf_combined)} records.")
+
+        # Load unemployment data from SEPE and compute unemployment per 1000 inhabitants
+        df_unemployment = load_unemployment()
+        gdf_combined = compute_unemployment_per_1000(gdf_combined, df_unemployment)
+        print(f"Unemployment data merged and standardized with {len(gdf_combined)} records.")
+
+        # Load affiliation data from Social Security and compute affiliation per 1000 inhabitants
+        df_affiliation = load_affiliation()
+        gdf_combined = compute_affiliation_per_1000(gdf_combined, df_affiliation)
+        print(f"Affiliation data merged and standardized with {len(gdf_combined)} records.")
+
         # Load Infoelectoral data
         df_infoelectoral = load_infoelectoral()
         print(f"Infoelectoral data loaded with {len(df_infoelectoral)} records.")
@@ -375,4 +570,4 @@ if __name__ == "__main__":
         output_path = output_dir / 'combined_data.gpkg'
         gdf_combined.to_file(output_path, driver='GPKG')
         gdf_combined.drop(columns='geometry').to_excel(output_dir / 'combined_data.xlsx', index=False)
-        print(f"Data extraction and combination completed. Output saved to '{output_path}'.")
+        print(f"Data extraction and combination completed. Output saved to '{output_dir}'.")
