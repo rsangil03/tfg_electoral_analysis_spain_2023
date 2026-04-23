@@ -16,22 +16,15 @@ V_POPULATION_2023 = 'Population in 2023'
 V_MEAN_AGE = 'Mean age'
 V_FOREIGN_POPULATION = 'Foreign-born population (%)'
 V_DENSITY = 'Population density (inhabitants/km2)'
-
-# Variables from INE higher education data
 V_HIGHER_EDUCATION = 'Population with higher education (%)'
-
-# Variables from INE's Household Income Distribution Atlas
-V_MEAN_NET_INCOME = 'Mean net income per person'
-
-# Variables from municipal register of inhabitants (Padrón Municipal) data
 V_POPULATION_CHANGE = 'Population change from 2019 to 2023 (%)'
 
-# Variables from Social Security
+# Variables from economic and unemployment data
+V_MEAN_NET_INCOME = 'Mean net income per person'
 V_AFFILIATION = 'Affiliation to Social Security per 1000 inhabitants'
-
-# Variables from SEPE (Public State Employment Service)
 V_UNEMPLOYMENT = 'Unemployment per 1000 inhabitants'
 
+# Variables from electoral data
 V_VOTES_2023 = 'Number of votes in 2023'
 V_VOTES_2019 = 'Number of votes in 2019'
 
@@ -49,6 +42,30 @@ V_PP_DIFF_2023_2019 = 'Vote difference for PP from 2019 to 2023'
 V_PSOE_DIFF_2023_2019 = 'Vote difference for PSOE from 2019 to 2023'
 V_VOX_DIFF_2023_2019 = 'Vote difference for VOX from 2019 to 2023'
 V_SUMAR_DIFF_2023_2019 = 'Vote difference for SUMAR from 2019 to 2023'
+
+V_LIST = [
+    V_POPULATION_2023,
+    V_DENSITY,
+    V_MEAN_AGE,
+    V_FOREIGN_POPULATION,
+    V_HIGHER_EDUCATION,
+    V_POPULATION_CHANGE,
+    V_MEAN_NET_INCOME,
+    V_UNEMPLOYMENT,
+    V_AFFILIATION,
+    V_PP_2023,
+    V_PSOE_2023,
+    V_VOX_2023,
+    V_SUMAR_2023,
+    V_PP_2019,
+    V_PSOE_2019,
+    V_VOX_2019,
+    V_SUMAR_2019,
+    V_PP_DIFF_2023_2019,
+    V_PSOE_DIFF_2023_2019,
+    V_VOX_DIFF_2023_2019,
+    V_SUMAR_DIFF_2023_2019
+]
 
 BASE_DIR = Path(__file__).parent.parent
 
@@ -115,8 +132,31 @@ C_CCAA_LA_RIOJA = '17'
 C_CCAA_CEUTA = '18'
 C_CCAA_MELILLA = '19'
 
+# Mapping of CCAA codes to their names in English, for easier interpretation of results
+C_CODE_TO_NAME = {
+        C_CCAA_ANDALUCIA: 'Andalusia',
+        C_CCAA_ARAGON: 'Aragon',
+        C_CCAA_ASTURIAS: 'Asturias',
+        C_CCAA_BALEARES: 'Balearic Islands',
+        C_CCAA_CANARIAS: 'Canary Islands',
+        C_CCAA_CANTABRIA: 'Cantabria',
+        C_CCAA_CASTILLA_Y_LEON: 'Castile and León',
+        C_CCAA_CASTILLA_LA_MANCHA: 'Castile-La Mancha',
+        C_CCAA_CATALUNYA: 'Catalonia',
+        C_CCAA_COMUNIDAD_VALENCIANA: 'Valencian Community',
+        C_CCAA_EXTREMADURA: 'Extremadura',
+        C_CCAA_GALICIA: 'Galicia',
+        C_CCAA_MADRID: 'Madrid',
+        C_CCAA_MURCIA: 'Murcia',
+        C_CCAA_NAVARRA: 'Navarra',
+        C_CCAA_PAIS_VASCO: 'Basque Country',
+        C_CCAA_LA_RIOJA: 'La Rioja',
+        C_CCAA_CEUTA: 'Ceuta',
+        C_CCAA_MELILLA: 'Melilla'
+}
+
 ELECTORAL_RESULTS_2023 = {
-        V_PP_2023: 33.06,
+        V_PP_2023: 33.27,
         V_PSOE_2023: 31.68,
         V_VOX_2023: 12.38,
         V_SUMAR_2023: 12.33
