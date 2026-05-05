@@ -10,16 +10,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN, SpectralClustering
 from sklearn.mixture import GaussianMixture
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score, within_cluster_sum_of_squares
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+import torch
 
 from src.config import *
 
-try:
-    from src.DEC import DEC
-
-    DEC = True
-except ImportError:
-    DEC = False
+from src.DEC import DEC
 
 def preprocess_data(gdf, variables, handle_nans='drop'):
     """
@@ -76,6 +72,22 @@ def evaluate_clusters(data, labels):
         'calinski_harabasz': ch
     }
 
+def compute_centroids(scaled_data, labels, variables):
+    """
+    Compute the centroid (mean) of each cluster in the scaled feature space.
+    Noise points (label == -1, from DBSCAN) are excluded.
+    
+    Returns a DataFrame of shape (n_clusters, n_variables) indexed by cluster label.
+    """
+    df = pd.DataFrame(scaled_data, columns=variables)
+    df['cluster'] = labels
+    centroids = (
+        df[df['cluster'] != -1]
+        .groupby('cluster')[variables]
+        .mean()
+    )
+    return centroids
+
 def perform_clustering(gdf, variables=None, algorithm='kmeans', handle_nans='drop', 
                        apply_pca=False, pca_components=2, **kwargs):
     if variables is None:
@@ -91,13 +103,23 @@ def perform_clustering(gdf, variables=None, algorithm='kmeans', handle_nans='dro
     scaled_data, gdf_filtered = preprocess_data(gdf, variables, handle_nans)
     
     clustering_data = scaled_data
+
+    # Always keep a reference to the pre-PCA data for metric evaluation and centroids
+    eval_data = scaled_data
     
     if apply_pca:
         clustering_data = reduce_dimensions(clustering_data, n_components=pca_components)
         
     if algorithm == 'kmeans':
         n_clusters = kwargs.get('n_clusters', 3)
-        model = KMeans(n_clusters=n_clusters, random_state=42)
+        random_state = kwargs.get('random_state', 42)
+        n_init = kwargs.get('n_init', 20)
+        model = KMeans(n_clusters=n_clusters, random_state=random_state, n_init=n_init)
+        labels = model.fit_predict(clustering_data)
+    elif algorithm == 'spectral':
+        n_clusters = kwargs.get('n_clusters', 3)
+        random_state = kwargs.get('random_state', 42)
+        model = SpectralClustering(n_clusters=n_clusters, random_state=random_state, affinity='nearest_neighbors')
         labels = model.fit_predict(clustering_data)
     elif algorithm == 'hierarchical':
         n_clusters = kwargs.get('n_clusters', 3)
@@ -108,37 +130,40 @@ def perform_clustering(gdf, variables=None, algorithm='kmeans', handle_nans='dro
         min_samples = kwargs.get('min_samples', 5)
         model = DBSCAN(eps=eps, min_samples=min_samples)
         labels = model.fit_predict(clustering_data)
-    elif algorithm == 'spectral':
-        n_clusters = kwargs.get('n_clusters', 3)
-        model = SpectralClustering(n_clusters=n_clusters, random_state=42, affinity='nearest_neighbors')
-        labels = model.fit_predict(clustering_data)
     elif algorithm == 'gaussian':
         n_components = kwargs.get('n_clusters', 3) # Using n_clusters for consistency
-        model = GaussianMixture(n_components=n_components, random_state=42)
+        random_state = kwargs.get('random_state', 42)
+        model = GaussianMixture(n_components=n_components, random_state=random_state)
         labels = model.fit_predict(clustering_data)
     elif algorithm == 'autoencoder':
-        embedding_dim = kwargs.get('embedding_dim', 2)
+        embedding_dim = kwargs.get('embedding_dim', 8)
         epochs = kwargs.get('epochs', 100)
         tol = kwargs.get('tol', 0.001)
         n_clusters = kwargs.get('n_clusters', 3)
+        random_state = kwargs.get('random_state', 42)
         model = DEC(n_clusters=n_clusters, input_dim=len(variables), embedding_dim=embedding_dim)
-        labels = model.fit_predict(clustering_data, epochs=epochs, tol=tol)
+        labels = model.fit_predict(clustering_data, epochs=epochs, tol=tol, random_state=random_state)
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
         
     gdf_filtered['cluster'] = labels
     
-    # Calculate evaluation metrics
-    metrics = evaluate_clusters(clustering_data, labels)
+    # Calculate evaluation metrics on the pre-PCA scaled data
+    metrics = evaluate_clusters(eval_data, labels)
     print(f"Clustering Metrics for {algorithm}" + (f" with PCA of {pca_components}" if apply_pca else "") + ":")
     print(f"  Silhouette Score: {metrics['silhouette']}")
     print(f"  Davies-Bouldin Index: {metrics['davies_bouldin']}")
     print(f"  Calinski-Harabasz Index: {metrics['calinski_harabasz']}")
+
+    # Compute centroids in the original scaled feature space (pre-PCA)
+    centroids = compute_centroids(eval_data, labels, variables)
+    print(f"\nCluster Centroids (scaled feature space):")
+    print(centroids.to_string())
     
-    return gdf_filtered, metrics
+    return gdf_filtered, metrics, centroids
 
 def plot_cluster_map(gdf, cluster_col='cluster', title='Clustering Map', 
-                     cmap='tab10', ax=None, legend_title='Cluster'):
+                     cmap='Accent', ax=None, legend_title='Cluster'):
     """
     Plots a map of Spain colored by cluster with insets for Canarias, Ceuta, and Melilla.
     """
@@ -232,7 +257,7 @@ def plot_cluster_map(gdf, cluster_col='cluster', title='Clustering Map',
     return fig, ax
 
 def plot_cluster_scatter(gdf, x, y, cluster_col='cluster', title=None, 
-                         cmap='tab10', alpha=0.5, ax=None):
+                         cmap='Accent', alpha=0.5, ax=None):
     """
     Plots a scatterplot of two variables colored by cluster.
     """
@@ -259,4 +284,7 @@ def plot_cluster_scatter(gdf, x, y, cluster_col='cluster', title=None,
 
 if __name__ == "__main__":
     print("Clustering module loaded successfully.")
-    print(f"PyTorch available: {TORCH_AVAILABLE}")
+    print(f"PyTorch available: {torch.__version__}, CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"CUDA device: {torch.cuda.get_device_name(0)}")
+        print(f"CUDA version: {torch.version.cuda}")
