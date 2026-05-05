@@ -67,6 +67,14 @@ V_LIST = [
     V_SUMAR_DIFF_2023_2019
 ]
 
+V_CLUSTERING_BASE = V_LIST + [
+    V_LATITUDE, 
+    V_LONGITUDE, 
+    V_AREA, 
+    V_CCAA, 
+    V_PROVINCE
+]
+
 BASE_DIR = Path(__file__).parent.parent
 
 # This is the filename of the INE demographics CSV in the raw data directory
