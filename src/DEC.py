@@ -4,6 +4,11 @@ import torch.optim as optim
 from sklearn.cluster import KMeans
 import numpy as np
 
+# Deep Embedded Clustering (DEC) implementation in PyTorch
+# This implementation is inspired by the original DEC paper (Xie et al., 2016) and 
+# on the Improved DEC paper (Guo et al., 2017), but has been simplified and
+# adapted for our specific use case of clustering Spanish municipalities based on socio-demographic and electoral data.
+
 class Autoencoder(nn.Module):
     """
     Stacked Autoencoder for feature representation.
@@ -28,7 +33,7 @@ class Autoencoder(nn.Module):
             nn.Linear(16, input_dim),
             nn.ReLU(),
             nn.Linear(input_dim, input_dim) 
-            # No ReLU on the final decoder layer to reconstruct input data (e.g., zero-mean images)
+            # No ReLU on the final decoder layer to reconstruct input data
         )
 
     def forward(self, x):
@@ -49,6 +54,7 @@ class ClusteringLayer(nn.Module):
     def forward(self, z):
         # Calculate the Student's t-distribution kernel
         # q_ij = (1 + ||z_i - u_j||^2 / alpha)^(-(alpha+1)/2) / sum(...)
+        # alpha is set to 1
         dist = torch.cdist(z, self.centroids, p=2) ** 2
         q = 1.0 / (1.0 + dist / self.alpha)
         q = q ** ((self.alpha + 1.0) / 2.0)
