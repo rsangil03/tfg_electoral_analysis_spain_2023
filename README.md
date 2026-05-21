@@ -144,4 +144,3 @@ conda activate tfgGPU
 
 - Xie, J., Girshick, R., Farhadi, A. (2016). *Unsupervised Deep Embedding for Clustering Analysis*. ICML.
 - Guo, X., Gao, L., Liu, X., Yin, J. (2017). *Improved Deep Embedded Clustering with Local Structure Preservation*. IJCAI.
-- Puig, X., Ginebra, J. (2015). *Ecological Inference and Spatial Variation of Individual Behavior: National Divide and Elections in Catalonia*. Geographical Analysis.
