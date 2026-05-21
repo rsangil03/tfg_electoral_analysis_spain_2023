@@ -25,3 +25,10 @@ data/processed/
 
 # HTML
 *.html
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
