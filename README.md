@@ -49,7 +49,7 @@ Several directories are not included in the repository and must be created manua
 mkdir -p data/raw/miteco
 mkdir -p data/raw/ine
 mkdir -p data/raw/sepe
-mkdir -p data/raw/seg_social
+mkdir -p "data/raw/seguridad social"
 mkdir -p data/raw/infoelectoral
 mkdir -p data/processed
 mkdir -p notebooks/02_images
